@@ -99,4 +99,4 @@ def average_imdb(movie_list):
 def average_imdb_by_category(movie_list, category):
     filtered = movies_by_category(movie_list, category)
     return average_imdb(filtered)
-print("1. Первый фильм высокий рейтинг?:", is_above_55(movies[0]))
+
