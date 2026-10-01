@@ -1,7 +1,6 @@
 import json
 import os
 
-# Получаем точный путь к папке task4, где лежит этот скрипт
 script_dir = os.path.dirname(os.path.abspath(__file__))
 json_path = os.path.join(script_dir, "sample-data.json")
 
@@ -9,7 +8,6 @@ try:
     with open(json_path, "r", encoding="utf-8") as file:
         data = json.load(file)
 
-    # Вывод таблицы
     print("Interface Status")
     print("=" * 80)
     print(f"{'DN':<50} {'Description':<20} {'Speed':<7} {'MTU':<6}")
