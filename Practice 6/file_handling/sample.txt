@@ -1,0 +1,3 @@
+Line 1: Python File Handling
+Line 2: Built-in Functions
+Line 3: End of file
