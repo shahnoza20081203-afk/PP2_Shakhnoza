@@ -78,6 +78,24 @@ def search_contact(name_to_find):
         finally:
             conn.close()
 
+def delete_y(first_name):
+    conn=get_connection()
+    if conn:
+        try:
+           with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM contacts WHERE first_name=%s",
+                        (f"%{first_name}%",)
+                    )
+                    print("delete")
+        except Exception as e:
+            print("Ошибка при поиске:", e)
+        finally:
+            conn.close()
+
 if __name__ == "__main__":
-    create_table()
+    # create_table()
+    # get_all_contacts()
+    delete_y("Ivan")
     get_all_contacts()
