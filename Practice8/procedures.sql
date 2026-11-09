@@ -1,45 +1,105 @@
-CREATE OR REPLACE PROCEDURE upsert_contact(p_name VARCHAR, p_phone VARCHAR)
-LANGUAGE plpgsql AS $$
+CREATE OR REPLACE PROCEDURE upsert_contact(
+    p_name VARCHAR,
+    p_phone VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM contacts WHERE name = p_name) THEN
-        UPDATE contacts SET phone = p_phone WHERE name = p_name;
+    IF EXISTS (
+        SELECT 1
+        FROM contacts
+        WHERE first_name = p_name
+    ) THEN
+
+        UPDATE contacts
+        SET phone = p_phone
+        WHERE first_name = p_name;
+
     ELSE
-        INSERT INTO contacts(name, phone) VALUES(p_name, p_phone);
+
+        INSERT INTO contacts (first_name, phone)
+        VALUES (p_name, p_phone);
+
     END IF;
 END;
 $$;
 
 CREATE OR REPLACE PROCEDURE bulk_insert_contacts(
-    p_names VARCHAR[], 
-    p_phones VARCHAR[]
+    IN p_users JSONB,
+    INOUT p_invalid JSONB
 )
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+AS $$
 DECLARE
-    i INT;
-    v_name VARCHAR;
-    v_phone VARCHAR;
+    item JSONB;
+    v_name TEXT;
+    v_phone TEXT;
+
 BEGIN
-    FOR i IN 1 .. array_length(p_names, 1) LOOP
-        v_name := p_names[i];
-        v_phone := p_phones[i];
-        
-        IF v_phone ~ '^\+?[0-9]{10,15}$' THEN
-            IF EXISTS (SELECT 1 FROM contacts WHERE name = v_name) THEN
-                UPDATE contacts SET phone = v_phone WHERE name = v_name;
-            ELSE
-                INSERT INTO contacts(name, phone) VALUES(v_name, v_phone);
-            END IF;
+    p_invalid := '[]'::JSONB;
+
+    FOR item IN
+        SELECT value
+        FROM jsonb_array_elements(p_users)
+    LOOP
+
+        v_name := NULLIF(TRIM(item->>'name'), '');
+        v_phone := NULLIF(TRIM(item->>'phone'), '');
+
+        IF v_name IS NULL
+           OR v_phone IS NULL
+           OR v_phone !~ '^\+?[0-9]{10,15}$'
+        THEN
+
+            p_invalid := p_invalid || jsonb_build_array(item);
+
         ELSE
-            RAISE NOTICE 'Некорректный телефон для пользователя %: %', v_name, v_phone;
+
+            IF EXISTS (
+                SELECT 1
+                FROM contacts
+                WHERE first_name = v_name
+            ) THEN
+
+                UPDATE contacts
+                SET phone = v_phone
+                WHERE first_name = v_name;
+
+            ELSE
+
+                INSERT INTO contacts (first_name, phone)
+                VALUES (v_name, v_phone);
+
+            END IF;
+
         END IF;
+
     END LOOP;
 END;
 $$;
 
-CREATE OR REPLACE PROCEDURE delete_contact(p_term VARCHAR)
-LANGUAGE plpgsql AS $$
+CREATE OR REPLACE PROCEDURE delete_contact(
+    p_name VARCHAR DEFAULT NULL,
+    p_phone VARCHAR DEFAULT NULL
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    DELETE FROM contacts 
-    WHERE name = p_term OR phone = p_term;
+
+    IF (p_name IS NULL) = (p_phone IS NULL) THEN
+        RAISE EXCEPTION 'Provide exactly one: name or phone';
+
+    ELSIF p_name IS NOT NULL THEN
+
+        DELETE FROM contacts
+        WHERE first_name = p_name;
+
+    ELSE
+
+        DELETE FROM contacts
+        WHERE phone = p_phone;
+
+    END IF;
+
 END;
 $$;

@@ -1,21 +1,49 @@
-CREATE OR REPLACE FUNCTION get_contacts_by_pattern(p TEXT)
-RETURNS TABLE(id INT, name VARCHAR, phone VARCHAR) AS $$
+CREATE OR REPLACE FUNCTION search_contacts(
+    p_pattern TEXT
+)
+RETURNS TABLE (
+    id INTEGER,
+    first_name VARCHAR,
+    phone VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    RETURN QUERY 
-    SELECT c.id, c.name, c.phone 
+    RETURN QUERY
+    SELECT
+        c.id,
+        c.first_name,
+        c.phone
     FROM contacts c
-    WHERE c.name ILIKE '%' || p || '%'
-       OR c.phone ILIKE '%' || p || '%';
+    WHERE c.first_name ILIKE '%' || p_pattern || '%'
+       OR c.phone ILIKE '%' || p_pattern || '%';
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE OR REPLACE FUNCTION get_contacts_paginated(p_limit INT, p_offset INT)
-RETURNS TABLE(id INT, name VARCHAR, phone VARCHAR) AS $$
+CREATE OR REPLACE FUNCTION get_contacts_page(
+    p_limit INTEGER,
+    p_offset INTEGER
+)
+RETURNS TABLE (
+    id INTEGER,
+    first_name VARCHAR,
+    phone VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    RETURN QUERY 
-    SELECT c.id, c.name, c.phone 
+    IF p_limit <= 0 OR p_offset < 0 THEN
+        RAISE EXCEPTION 'Invalid limit or offset';
+    END IF;
+
+    RETURN QUERY
+    SELECT
+        c.id,
+        c.first_name,
+        c.phone
     FROM contacts c
     ORDER BY c.id
-    LIMIT p_limit OFFSET p_offset;
+    LIMIT p_limit
+    OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$$;

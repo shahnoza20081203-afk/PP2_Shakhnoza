@@ -1,36 +1,142 @@
+
+from connect import connect
+from psycopg2.extras import Json
 import psycopg2
-from config import DB_CONFIG
+
 
 def main():
-    conn = psycopg2.connect(**DB_CONFIG)
-    conn.autocommit = True 
-    cursor = conn.cursor()
+    conn = connect()
+    cur = conn.cursor()
 
-    print("--- 1. Тест поиска по паттерну ---")
-    cursor.execute("SELECT * FROM get_contacts_by_pattern(%s)", ('Ali',))
-    for row in cursor.fetchall():
-        print(row)
+    try:
+        while True:
+            print("\n===== PHONEBOOK =====")
+            print("1. Search contacts")
+            print("2. Add or update contact")
+            print("3. Bulk insert contacts")
+            print("4. Show contacts (Pagination)")
+            print("5. Delete contact")
+            print("0. Exit")
 
-    print("\n--- 2. Тест Upsert процедуры ---")
-    cursor.execute("CALL upsert_contact(%s, %s)", ('Aidos', '+77011234567'))
-    print("Контакт успешно добавлен/обновлен через процедуру.")
+            choice = input("Choose option: ")
 
-    print("\n--- 3. Тест массовой вставки (Bulk Insert) ---")
-    names = ['Baurzhan', 'Dinara', 'InvalidUser']
-    phones = ['+77029998877', '87015554433', '123'] 
-    cursor.execute("CALL bulk_insert_contacts(%s, %s)", (names, phones))
+            try:
+                if choice == "1":
+                    pattern = input("Enter name, surname or phone: ")
 
-    print("\n--- 4. Тест пагинации ---")
-    cursor.execute("SELECT * FROM get_contacts_paginated(%s, %s)", (2, 0))
-    for row in cursor.fetchall():
-        print(row)
+                    cur.execute(
+                        "SELECT * FROM search_contacts(%s)",
+                        (pattern,)
+                    )
 
-    print("\n--- 5. Тест удаления контакта ---")
-    cursor.execute("CALL delete_contact(%s)", ('InvalidUser',))
-    print("Процедура удаления выполнена.")
+                    results = cur.fetchall()
 
-    cursor.close()
-    conn.close()
+                    for row in results:
+                        print(row)
 
-if __name__ == '__main__':
+                    if not results:
+                        print("No contacts found.")
+
+                elif choice == "2":
+                    name = input("Enter name: ")
+                    phone = input("Enter phone: ")
+
+                    cur.execute(
+                        "CALL upsert_contact(%s, %s)",
+                        (name, phone)
+                    )
+
+                    conn.commit()
+                    print("Contact saved successfully!")
+
+                elif choice == "3":
+                    users = []
+
+                    count = int(input("How many users? "))
+
+                    for i in range(count):
+                        print(f"\nUser {i + 1}")
+
+                        name = input("Enter name: ")
+                        phone = input("Enter phone: ")
+
+                        users.append({
+                            "name": name,
+                            "phone": phone
+                        })
+
+                    cur.execute(
+                        "CALL bulk_insert_contacts(%s, %s)",
+                        (Json(users), None)
+                    )
+
+                    invalid = cur.fetchone()[0]
+
+                    conn.commit()
+
+                    print("Incorrect records:", invalid)
+
+                elif choice == "4":
+                    limit = int(input("Contacts per page: "))
+                    offset = int(input("Offset: "))
+
+                    cur.execute(
+                        "SELECT * FROM get_contacts_page(%s, %s)",
+                        (limit, offset)
+                    )
+
+                    results = cur.fetchall()
+
+                    for row in results:
+                        print(row)
+
+                    if not results:
+                        print("No contacts on this page.")
+
+                elif choice == "5":
+                    print("1. Delete by name")
+                    print("2. Delete by phone")
+
+                    delete_choice = input("Choose: ")
+
+                    if delete_choice == "1":
+                        name = input("Enter name: ")
+
+                        cur.execute(
+                            "CALL delete_contact(%s, %s)",
+                            (name, None)
+                        )
+
+                    elif delete_choice == "2":
+                        phone = input("Enter phone: ")
+
+                        cur.execute(
+                            "CALL delete_contact(%s, %s)",
+                            (None, phone)
+                        )
+
+                    else:
+                        print("Invalid choice!")
+                        continue
+
+                    conn.commit()
+                    print("Delete operation completed!")
+
+                elif choice == "0":
+                    print("Goodbye!")
+                    break
+
+                else:
+                    print("Invalid choice!")
+
+            except (psycopg2.Error, ValueError) as error:
+                conn.rollback()
+                print("Error:", error)
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+if __name__ == "__main__":
     main()
