@@ -1,23 +1,24 @@
-CREATE OR REPLACE FUNCTION search_contacts(
-    p_pattern TEXT
-)
+CREATE OR REPLACE FUNCTION search_contacts(p_query TEXT)
 RETURNS TABLE (
     id INTEGER,
     first_name VARCHAR,
-    phone VARCHAR
+    email VARCHAR,
+    phone VARCHAR,
+    phone_type VARCHAR
 )
-LANGUAGE plpgsql
+LANGUAGE sql
 AS $$
-BEGIN
-    RETURN QUERY
-    SELECT
+    SELECT DISTINCT
         c.id,
         c.first_name,
-        c.phone
+        c.email,
+        p.phone,
+        p.type
     FROM contacts c
-    WHERE c.first_name ILIKE '%' || p_pattern || '%'
-       OR c.phone ILIKE '%' || p_pattern || '%';
-END;
+    LEFT JOIN phones p ON p.contact_id = c.id
+    WHERE c.first_name ILIKE '%' || p_query || '%'
+       OR c.email ILIKE '%' || p_query || '%'
+       OR p.phone ILIKE '%' || p_query || '%';
 $$;
 
 CREATE OR REPLACE FUNCTION get_contacts_page(

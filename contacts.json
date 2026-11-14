@@ -1,0 +1,76 @@
+[
+  {
+    "id": 1,
+    "name": "Ivan",
+    "email": "ivan@gmail.com",
+    "birthday": null,
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Family",
+    "phones": [
+      {
+        "phone": "87011234567",
+        "type": "mobile"
+      },
+      {
+        "phone": "+77001234567",
+        "type": "mobile"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Aigerim",
+    "email": null,
+    "birthday": null,
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Other",
+    "phones": [
+      {
+        "phone": "87029876543",
+        "type": "mobile"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "John",
+    "email": null,
+    "birthday": null,
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Other",
+    "phones": [
+      {
+        "phone": "87775554432",
+        "type": "mobile"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Sara",
+    "email": null,
+    "birthday": null,
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Other",
+    "phones": [
+      {
+        "phone": "77676545454",
+        "type": "mobile"
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Mari",
+    "email": null,
+    "birthday": null,
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Other",
+    "phones": [
+      {
+        "phone": "77089879898",
+        "type": "mobile"
+      }
+    ]
+  }
+]

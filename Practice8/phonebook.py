@@ -121,7 +121,6 @@ def main():
 
                     conn.commit()
                     print("Delete operation completed!")
-
                 elif choice == "0":
                     print("Goodbye!")
                     break

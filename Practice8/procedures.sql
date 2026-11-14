@@ -14,7 +14,7 @@ BEGIN
         UPDATE contacts
         SET phone = p_phone
         WHERE first_name = p_name;
-
+    
     ELSE
 
         INSERT INTO contacts (first_name, phone)
