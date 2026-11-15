@@ -1,13 +1,16 @@
 import csv
 import json
+from pathlib import Path
+
 import psycopg2
 from psycopg2.extras import Json
 
 from connect import connect
 
-from pathlib import Path
 
 PAGE_SIZE = 5
+ALLOWED_GROUPS = {"Family", "Work", "Friend", "Other"}
+ALLOWED_PHONE_TYPES = {"home", "work", "mobile"}
 
 
 def print_contacts(rows):
@@ -19,8 +22,56 @@ def print_contacts(rows):
         print(row)
 
 
+def ensure_group(cur, group_name):
+    if group_name not in ALLOWED_GROUPS:
+        group_name = "Other"
+
+    cur.execute(
+        """
+        INSERT INTO groups (name)
+        VALUES (%s)
+        ON CONFLICT (name) DO NOTHING
+        """,
+        (group_name,)
+    )
+    cur.execute("SELECT id FROM groups WHERE name = %s", (group_name,))
+    return cur.fetchone()[0]
+
+
+def save_phone(cur, contact_id, number, phone_type):
+    if not number:
+        return
+
+    if phone_type not in ALLOWED_PHONE_TYPES:
+        raise ValueError("Phone type must be home, work, or mobile.")
+
+    cur.execute(
+        """
+        SELECT id FROM phones
+        WHERE contact_id = %s AND phone = %s
+        LIMIT 1
+        """,
+        (contact_id, number)
+    )
+    existing_phone = cur.fetchone()
+
+    if existing_phone:
+        cur.execute(
+            "UPDATE phones SET type = %s WHERE id = %s",
+            (phone_type, existing_phone[0])
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO phones (contact_id, phone, type)
+            VALUES (%s, %s, %s)
+            """,
+            (contact_id, number, phone_type)
+        )
+
+
 def search_contacts(cur):
-    query = input("Search by name, email, or phone: ")
+    query = input("Search by name, email, or phone: ").strip()
     cur.execute("SELECT * FROM search_contacts(%s)", (query,))
     print_contacts(cur.fetchall())
 
@@ -28,7 +79,43 @@ def search_contacts(cur):
 def add_or_update_contact(cur, conn):
     name = input("Enter name: ").strip()
     phone = input("Enter phone: ").strip()
+    phone_type = input("Phone type (home/work/mobile): ").strip().lower()
+    email = input("Email (or press Enter to leave empty): ").strip() or None
+    birthday = input("Birthday YYYY-MM-DD (or press Enter to leave empty): ").strip() or None
+    group_name = input("Group (Family/Work/Friend/Other): ").strip() or "Other"
+
+    if not name or not phone:
+        print("Name and phone are required.")
+        return
+
+    if phone_type not in ALLOWED_PHONE_TYPES:
+        print("Phone type must be home, work, or mobile.")
+        return
+
+    group_id = ensure_group(cur, group_name)
+
     cur.execute("CALL upsert_contact(%s, %s)", (name, phone))
+
+    cur.execute(
+        """
+        SELECT id FROM contacts
+        WHERE LOWER(first_name) = LOWER(%s)
+        LIMIT 1
+        """,
+        (name,)
+    )
+    contact_id = cur.fetchone()[0]
+
+    cur.execute(
+        """
+        UPDATE contacts
+        SET email = %s, birthday = %s, group_id = %s
+        WHERE id = %s
+        """,
+        (email, birthday, group_id, contact_id)
+    )
+
+    save_phone(cur, contact_id, phone, phone_type)
     conn.commit()
     print("Contact saved successfully!")
 
@@ -182,30 +269,55 @@ def export_contacts(cur):
             "phones": row[6],
         })
 
-    with open("contacts.json", "w", encoding="utf-8") as file:
+    output_path = Path(__file__).resolve().parent / "contacts.json"
+    with open(output_path, "w", encoding="utf-8") as file:
         json.dump(contacts, file, ensure_ascii=False, indent=2)
 
-    print("Contacts exported to contacts.json")
+    print(f"Contacts exported to {output_path}")
 
 
-def import_contacts(cur, conn):
+def import_contacts_json(cur, conn):
     filename = input("JSON file [contacts.json]: ").strip() or "contacts.json"
+    file_path = Path(filename)
+
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent / file_path
 
     try:
-        with open(filename, "r", encoding="utf-8") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             contacts = json.load(file)
     except (OSError, json.JSONDecodeError) as error:
         print("Could not read JSON file:", error)
         return
 
+    if not isinstance(contacts, list):
+        print("The JSON file must contain a list of contacts.")
+        return
+
     for contact in contacts:
+        if not isinstance(contact, dict):
+            print("Skipping an invalid contact entry.")
+            continue
+
         name = (contact.get("name") or "").strip()
         if not name:
             print("Skipping a contact without a name.")
             continue
 
+        group_name = (contact.get("group") or "Other").strip()
+        group_id = ensure_group(cur, group_name)
+        phones = contact.get("phones") or []
+
+        first_phone = ""
+        if phones and isinstance(phones[0], dict):
+            first_phone = (phones[0].get("phone") or "").strip()
+
         cur.execute(
-            "SELECT id FROM contacts WHERE LOWER(first_name) = LOWER(%s) LIMIT 1",
+            """
+            SELECT id FROM contacts
+            WHERE LOWER(first_name) = LOWER(%s)
+            LIMIT 1
+            """,
             (name,)
         )
         existing = cur.fetchone()
@@ -217,7 +329,7 @@ def import_contacts(cur, conn):
 
             if action == "s":
                 continue
-            elif action != "o":
+            if action != "o":
                 print("Invalid choice; skipping contact.")
                 continue
 
@@ -225,82 +337,66 @@ def import_contacts(cur, conn):
             cur.execute(
                 """
                 UPDATE contacts
-                SET email = %s, birthday = %s, group_id = (
-                    SELECT id FROM groups WHERE name = %s
-                )
+                SET phone = %s, email = %s, birthday = %s, group_id = %s
                 WHERE id = %s
                 """,
                 (
+                    first_phone,
                     contact.get("email"),
                     contact.get("birthday"),
-                    contact.get("group") or "Other",
+                    group_id,
                     contact_id
                 )
             )
-            cur.execute("DELETE FROM phones WHERE contact_id = %s", (contact_id,))
-        else:
-            group_name = contact.get("group") or "Other"
             cur.execute(
-                "INSERT INTO groups (name) VALUES (%s) ON CONFLICT (name) DO NOTHING",
-                (group_name,)
+                "DELETE FROM phones WHERE contact_id = %s",
+                (contact_id,)
             )
+        else:
             cur.execute(
                 """
-                INSERT INTO contacts (first_name, email, birthday, group_id)
-                VALUES (
-                    %s, %s, %s,
-                    (SELECT id FROM groups WHERE name = %s)
-                )
+                INSERT INTO contacts (first_name, phone, email, birthday, group_id)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
                     name,
+                    first_phone,
                     contact.get("email"),
                     contact.get("birthday"),
-                    group_name
+                    group_id
                 )
             )
             contact_id = cur.fetchone()[0]
 
-        group_name = contact.get("group") or "Other"
-        cur.execute(
-            "INSERT INTO groups (name) VALUES (%s) ON CONFLICT (name) DO NOTHING",
-            (group_name,)
-        )
-        cur.execute(
-            "UPDATE contacts SET group_id = (SELECT id FROM groups WHERE name = %s) WHERE id = %s",
-            (group_name, contact_id)
-        )
+        for phone_data in phones:
+            if not isinstance(phone_data, dict):
+                continue
 
-        for phone in contact.get("phones", []):
-            number = phone.get("phone")
-            phone_type = phone.get("type", "mobile")
+            number = (phone_data.get("phone") or "").strip()
+            phone_type = (phone_data.get("type") or "mobile").strip().lower()
+
             if number:
-                cur.execute(
-                    """
-                    INSERT INTO phones (contact_id, phone, type)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (contact_id, number, phone_type)
-                )
+                save_phone(cur, contact_id, number, phone_type)
 
     conn.commit()
     print("JSON import completed.")
 
+
 def import_contacts_csv(cur, conn):
     filename = input("CSV file [contacts.csv]: ").strip() or "contacts.csv"
+    file_path = Path(filename)
+
+    if not file_path.is_absolute():
+        file_path = Path(__file__).resolve().parent / file_path
 
     try:
-        file_path = Path(__file__).resolve().parent / filename
-
         with open(file_path, "r", encoding="utf-8-sig", newline="") as file:
             rows = list(csv.DictReader(file))
     except OSError as error:
         print("Could not read CSV file:", error)
         return
 
-    allowed_groups = {"Family", "Work", "Friend", "Other"}
-    allowed_phone_types = {"home", "work", "mobile"}
     imported_phones = set()
 
     for row in rows:
@@ -315,28 +411,15 @@ def import_contacts_csv(cur, conn):
             print(f"Skipping row with missing name or phone: {row}")
             continue
 
-        if group_name not in allowed_groups:
+        if group_name not in ALLOWED_GROUPS:
             print(f"Skipping {name}: unknown group '{group_name}'.")
             continue
 
-        if phone_type not in allowed_phone_types:
+        if phone_type not in ALLOWED_PHONE_TYPES:
             print(f"Skipping {name}: invalid phone type '{phone_type}'.")
             continue
 
-        cur.execute(
-            "SELECT id FROM groups WHERE name = %s",
-            (group_name,)
-        )
-        group = cur.fetchone()
-
-        if group:
-            group_id = group[0]
-        else:
-            cur.execute(
-                "INSERT INTO groups (name) VALUES (%s) RETURNING id",
-                (group_name,)
-            )
-            group_id = cur.fetchone()[0]
+        group_id = ensure_group(cur, group_name)
 
         cur.execute(
             """
@@ -370,23 +453,9 @@ def import_contacts_csv(cur, conn):
             contact_id = cur.fetchone()[0]
 
         phone_key = (contact_id, phone)
+
         if phone_key not in imported_phones:
-            cur.execute(
-                """
-                SELECT 1 FROM phones
-                WHERE contact_id = %s AND phone = %s
-                LIMIT 1
-                """,
-                (contact_id, phone)
-            )
-            if cur.fetchone() is None:
-                cur.execute(
-                    """
-                    INSERT INTO phones (contact_id, phone, type)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (contact_id, phone, phone_type)
-                )
+            save_phone(cur, contact_id, phone, phone_type)
             imported_phones.add(phone_key)
 
     conn.commit()
@@ -436,7 +505,7 @@ def main():
                 elif choice == "8":
                     export_contacts(cur)
                 elif choice == "9":
-                    import_contacts(cur, conn)
+                    import_contacts_json(cur, conn)
                 elif choice == "10":
                     import_contacts_csv(cur, conn)
                 elif choice == "0":

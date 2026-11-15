@@ -1,6 +1,6 @@
 name,email,birthday,group,phone,phone_type
-Aigerim,,,"Other",87029876543,mobile
-John,,,"Other",87775554432,mobile
-Sara,,,"Other",77676545454,mobile
-Mari,,,"Other",77089879898,mobile
-Ivan,ivan@gmail.com,,"Family",87011234567,mobile
+Aigerim,a@mail.ru,2003-04-12,"Work",87029876543,home
+John,jou@gmail.com,2002-09-21,"Friend",87775554432,work
+Sara,s_d@gmail.com,2004-01-30,"Work",77676545454,mobile
+Mari,mm@mail.ru,2005-07-08,"Other",77089879898,home
+Ivan,ivan@gmail.com,2001-12-03,"Family",87011234567,mobile

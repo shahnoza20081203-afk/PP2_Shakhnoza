@@ -1,0 +1,106 @@
+[
+  {
+    "id": 1,
+    "name": "Ivan",
+    "email": null,
+    "birthday": null,
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Other",
+    "phones": [
+      {
+        "phone": "87066564535",
+        "type": "home"
+      },
+      {
+        "phone": "+77001234567",
+        "type": "mobile"
+      },
+      {
+        "phone": "87011234567",
+        "type": "mobile"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Aigerim",
+    "email": "a@mail.ru",
+    "birthday": "2003-04-12",
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Work",
+    "phones": [
+      {
+        "phone": "87001234567",
+        "type": "work"
+      },
+      {
+        "phone": "87029876543",
+        "type": "home"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "John",
+    "email": "jou@gmail.com",
+    "birthday": "2002-09-21",
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Friend",
+    "phones": [
+      {
+        "phone": "87775554432",
+        "type": "work"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Sara",
+    "email": "s_d@gmail.com",
+    "birthday": "2004-01-30",
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Work",
+    "phones": [
+      {
+        "phone": "77676545454",
+        "type": "mobile"
+      },
+      {
+        "phone": "87073564535",
+        "type": "home"
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Mari",
+    "email": "mm@mail.ru",
+    "birthday": "2005-07-08",
+    "date_added": "2026-11-14T16:10:15.700448",
+    "group": "Other",
+    "phones": [
+      {
+        "phone": "77089879898",
+        "type": "home"
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Samal",
+    "email": null,
+    "birthday": null,
+    "date_added": "2026-11-15T14:48:05.600965",
+    "group": null,
+    "phones": []
+  },
+  {
+    "id": 8,
+    "name": "Dara",
+    "email": null,
+    "birthday": null,
+    "date_added": "2026-11-15T14:48:05.600965",
+    "group": null,
+    "phones": []
+  }
+]
