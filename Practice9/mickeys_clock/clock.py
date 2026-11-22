@@ -51,26 +51,22 @@ class MickeyClock:
 
     
     def draw_hand(self, screen, image, angle):
-        # Rotate the hand image
+      
         rotated_image = pygame.transform.rotate(image, -angle)
 
-        # Original pivot: top center of the image
         pivot = pygame.math.Vector2(
             image.get_width() / 2,
             0
         )
 
-        # Position of the clock center
         center = pygame.math.Vector2(self.center)
 
-        # Calculate the new pivot after rotation
         rotated_pivot = pygame.math.Vector2(
             rotated_image.get_rect().center
         ) + (pivot - pygame.math.Vector2(
             image.get_rect().center
         )).rotate(angle)
 
-        # Draw image at the correct position
         rect = rotated_image.get_rect(
             center=(center.x, center.y)
         )
